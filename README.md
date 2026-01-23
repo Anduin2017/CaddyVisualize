@@ -2,6 +2,16 @@
 
 ![Preview-CaddyVisualize](./preview.png)
 
+## Key Features
+
+- **Real User IP Tracking**: Automatically prioritizes `client_ip` (parsed from `X-Forwarded-For`) over `remote_ip` when behind CDN/proxies like Cloudflare, ensuring you capture actual user IPs instead of edge node IPs
+- **Geographic Analysis**: Extracts country codes from Cloudflare's `Cf-Ipcountry` header for traffic distribution insights
+- **High-Performance Streaming**: Efficiently processes Caddy JSON logs in real-time with batch insertion to ClickHouse
+- **Log Rotation Support**: Automatically handles log file rotation without data loss
+- **Rich Analytics**: Query by country, host, status code, duration, and more with ClickHouse's powerful SQL engine
+
+> **Update Note**: The new version adds parsing of Cloudflare's `Cf-Ipcountry` header for geographic location information, and prioritizes Caddy's parsed `client_ip` to obtain the real user IP.
+
 ## How to install
 
 Before installing, make sure you have caddy installed and running.
@@ -81,7 +91,7 @@ CREATE TABLE logs.caddy_requests (
   level          LowCardinality(String),
   logger         LowCardinality(String),
   msg            String,
-  remote_ip      String,
+  remote_ip      String,                 -- Note: This now stores the real client_ip
   remote_port    UInt16,
   method         LowCardinality(String),
   host           LowCardinality(String),
@@ -90,15 +100,16 @@ CREATE TABLE logs.caddy_requests (
   duration_ms    Float32,
   bytes_sent     UInt64,
   user_agent     String,
+  country        LowCardinality(String), -- New column: Country/region code
   err_id         LowCardinality(String),
   err_trace      String
 )
 ENGINE = MergeTree()
--- 按“年-月”分区，也可改成 toYYYYMMDD(ts) 做日分区
+-- Partition by year-month, can also use toYYYYMMDD(ts) for daily partition
 PARTITION BY toYYYYMM(ts)
--- 主键兼排序键
+-- Primary key and sort key
 ORDER BY (ts, host, remote_ip)
--- 自动 90 天后清理旧数据（可选）
+-- Automatically clean up old data after 90 days (optional)
 TTL ts + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 ```
@@ -205,6 +216,20 @@ FORMAT Pretty
 ```
 
 This will show you the latest 30 requests logged by Caddy.
+
+**Global Traffic Distribution (Request count by Country):**
+
+View geographic distribution of your traffic:
+
+```sql
+SELECT
+    country,
+    count() AS requests
+FROM logs.caddy_requests
+GROUP BY country
+ORDER BY requests DESC
+LIMIT 20;
+```
 
 ### Step 7: Visualize the data with Grafana
 

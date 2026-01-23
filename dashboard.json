@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 9,
   "links": [],
   "liveNow": true,
   "panels": [
@@ -29,54 +29,102 @@
       },
       "fieldConfig": {
         "defaults": {
-          "fieldMinMax": false,
+          "color": {
+            "mode": "fixed"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "displayName": "Users",
           "mappings": [],
-          "max": 41943040,
-          "min": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
+                "value": 0
               },
               {
                 "color": "red",
-                "value": 85
+                "value": 80
               }
             ]
-          },
-          "unit": "binBps"
+          }
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 3,
+        "h": 15,
+        "w": 9,
         "x": 0,
         "y": 0
       },
-      "id": 29,
+      "id": 38,
       "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "basemap": {
+          "config": {
+            "server": "world-imagery",
+            "showLabels": false,
+            "theme": "dark"
+          },
+          "layer-tooltip": true,
+          "name": "Layer 0",
+          "noRepeat": false,
+          "opacity": 1,
+          "type": "carto"
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showMeasure": true,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "config": {
+              "blur": 27,
+              "radius": 19,
+              "weight": {
+                "field": "unique_ip_count",
+                "fixed": 1,
+                "max": 1,
+                "min": 0
+              }
+            },
+            "filterData": {
+              "id": "byRefId",
+              "options": "A"
+            },
+            "layer-tooltip": true,
+            "location": {
+              "lookup": "country_code",
+              "mode": "lookup"
+            },
+            "name": "Layer 1",
+            "opacity": 1,
+            "tooltip": true,
+            "type": "heatmap"
+          }
+        ],
+        "tooltip": {
+          "mode": "details"
+        },
+        "view": {
+          "allLayers": true,
+          "id": "zero",
+          "lat": 0,
+          "lon": 0,
+          "noRepeat": false,
+          "zoom": 1
+        }
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -97,7 +145,1092 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    sum(bytes_sent) / (($__toTime) - ($__fromTime)) AS bytes_per_second\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n",
+          "rawSql": "SELECT\n    if(country = '', 'Unknown', toString(country)) AS country_code,\n    uniqExact(remote_ip)                           AS unique_ip_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  -- 暂时注释掉 IP 过滤，先看全局分布\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY country_code\nORDER BY unique_ip_count DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Country",
+      "type": "geomap"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 9,
+        "y": 0
+      },
+      "id": 35,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "WITH first_seen AS (\n  SELECT\n    remote_ip,\n    min(ts) AS first_seen\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n  GROUP BY remote_ip\n),\nnew_ips_per_bucket AS (\n  SELECT\n    toStartOfMinute(first_seen) AS bucket,   -- 这一行可以改成你想要的时间粒度\n    count() AS new_ips\n  FROM first_seen\n  GROUP BY bucket\n)\nSELECT\n  bucket AS time,\n  sum(new_ips) OVER (ORDER BY bucket ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_unique_ips\nFROM new_ips_per_bucket\nORDER BY bucket;\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Accumulative Unique Visitors",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "displayName": "Count",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 13,
+        "y": 0
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT $__timeInterval(ts) as \"time\", count(ts) FROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n  GROUP BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 2,
+        "x": 17,
+        "y": 0
+      },
+      "id": 21,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": false,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n  method                        AS method,\n  count()                       AS request_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY method\nORDER BY request_count DESC\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Method Distribution",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 700,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 240
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 2,
+        "x": 19,
+        "y": 0
+      },
+      "id": 31,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n  quantile(0.95)(duration_ms) AS current_p95_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n",
+          "refId": "A"
+        }
+      ],
+      "title": "P95 Latency",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 3,
+        "x": 21,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n  $__timeInterval(ts)                          AS \"time\",\n  quantile(0.95)(duration_ms)                  AS p95_response_time_ms\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY time\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests Latency P95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 2,
+        "x": 19,
+        "y": 2
+      },
+      "id": 34,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n  quantile(0.80)(duration_ms) AS current_p95_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n",
+          "refId": "A"
+        }
+      ],
+      "title": "P80 Latency",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 16,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 2,
+        "x": 19,
+        "y": 4
+      },
+      "id": 33,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n  quantile(0.5)(duration_ms) AS current_median_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Middle Latency",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 4,
+        "x": 9,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "limit": 10,
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    host                            AS Application,\n    uniqExact(remote_ip)            AS unique_ip_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Application\nORDER BY unique_ip_count DESC\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests By Unique IP Count (IPs)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 4,
+        "x": 13,
+        "y": 6
+      },
+      "id": 7,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "limit": 10,
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    host                            AS Application,\n    sum(duration_ms)/1000                AS total_duration_seconds\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status != '101'\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Application\nORDER BY total_duration_seconds DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Time costs (Seconds)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 4,
+        "x": 17,
+        "y": 6
+      },
+      "id": 28,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "limit": 10,
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    host                            AS Application,\n    sum(bytes_sent)                AS total_duration_seconds\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status != '101'\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Application\nORDER BY total_duration_seconds DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Bytes Sent (MB)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 3,
+        "x": 21,
+        "y": 6
+      },
+      "id": 9,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "limit": 10,
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    host                                       AS Application,\n    round(countIf(status >= 500) / count() * 100, 2) AS failure_rate_percent\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Application\nORDER BY failure_rate_percent DESC\n",
+          "refId": "A"
+        }
+      ],
+      "title": "500 Failure Rate%",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "fieldMinMax": false,
+          "mappings": [],
+          "max": 41943040,
+          "min": 0,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 2,
+        "x": 0,
+        "y": 15
+      },
+      "id": 29,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    sum(bytes_sent) / (($__toTime) - ($__fromTime)) AS bytes_per_second\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n",
           "refId": "A"
         }
       ],
@@ -119,7 +1252,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "orange",
@@ -137,9 +1270,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 3,
-        "x": 3,
-        "y": 0
+        "w": 2,
+        "x": 2,
+        "y": 15
       },
       "id": 30,
       "options": {
@@ -157,7 +1290,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -178,7 +1311,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n  count() / dateDiff('second', $__fromTime, $__toTime) AS avg_requests_per_second\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n",
+          "rawSql": "SELECT\n  count() / dateDiff('second', $__fromTime, $__toTime) AS avg_requests_per_second\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n",
           "refId": "A"
         }
       ],
@@ -208,9 +1341,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 3,
-        "x": 6,
-        "y": 0
+        "w": 2,
+        "x": 4,
+        "y": 15
       },
       "id": 26,
       "options": {
@@ -230,12 +1363,14 @@
           "fields": "/^request_count$/",
           "values": true
         },
+        "sort": "desc",
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -256,7 +1391,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n   toString(status) AS status,\n  count()                       AS request_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip  LIKE '%${IP}%'\nGROUP BY status\nORDER BY request_count DESC\n",
+          "rawSql": "SELECT\n   toString(status) AS status,\n  count()                       AS request_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY status\nORDER BY request_count DESC\n",
           "refId": "A"
         }
       ],
@@ -265,195 +1400,6 @@
     },
     {
       "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineStyle": {
-              "fill": "solid"
-            },
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "displayName": "Count",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1000
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 5,
-        "x": 9,
-        "y": 0
-      },
-      "id": 27,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT $__timeInterval(ts) as \"time\", count(ts) FROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip like '%${IP}%'\n  GROUP BY time",
-          "refId": "A"
-        }
-      ],
-      "title": "Requests Count",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 3,
-        "x": 14,
-        "y": 0
-      },
-      "id": 21,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "",
-          "values": true
-        },
-        "showUnfilled": false,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  method                        AS method,\n  count()                       AS request_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip  LIKE '%${IP}%'\nGROUP BY method\nORDER BY request_count DESC\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Method Distribution",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
         "uid": "fet9b6miuomwwf"
       },
       "fieldConfig": {
@@ -462,612 +1408,12 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "max": 700,
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 240
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 17,
-        "y": 0
-      },
-      "id": 31,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  quantile(0.95)(duration_ms) AS current_p95_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n",
-          "refId": "A"
-        }
-      ],
-      "title": "P95 Latency",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 20,
-        "y": 0
-      },
-      "id": 3,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  $__timeInterval(ts)                          AS \"time\",\n  quantile(0.95)(duration_ms)                  AS p95_response_time_ms\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY time\nORDER BY time",
-          "refId": "A"
-        }
-      ],
-      "title": "Requests Latency P95",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 30
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 17,
-        "y": 2
-      },
-      "id": 34,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  quantile(0.80)(duration_ms) AS current_p95_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n",
-          "refId": "A"
-        }
-      ],
-      "title": "P80 Latency",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 16,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 17,
-        "y": 4
-      },
-      "id": 33,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  quantile(0.5)(duration_ms) AS current_median_response_time_ms\nFROM logs.caddy_requests\nWHERE ts BETWEEN $__fromTime AND $__toTime\n  AND status   != '101'\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Middle Latency",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 14,
-        "w": 5,
-        "x": 0,
-        "y": 6
-      },
-      "id": 5,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "/^requests$/",
-          "limit": 20,
-          "values": true
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    host as Application,\n    count()                AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip like '%${IP}%'\nGROUP BY Application\nORDER BY requests DESC\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Requests By Count",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 5,
-        "y": 6
-      },
-      "id": 6,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "",
-          "limit": 10,
-          "values": true
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    host                            AS Application,\n    uniqExact(remote_ip)            AS unique_ip_count\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Application\nORDER BY unique_ip_count DESC\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Requests By Unique IP Count (IPs)",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 10,
-        "y": 6
-      },
-      "id": 7,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "",
-          "limit": 10,
-          "values": true
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    host                            AS Application,\n    sum(duration_ms)/1000                AS total_duration_seconds\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status != '101'\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Application\nORDER BY total_duration_seconds DESC",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Time costs (Seconds)",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1080,36 +1426,32 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 15,
-        "y": 6
+        "h": 6,
+        "w": 3,
+        "x": 6,
+        "y": 15
       },
-      "id": 28,
+      "id": 36,
       "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
-          "limit": 10,
-          "values": true
+          "values": false
         },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
           "editorType": "sql",
           "format": 1,
           "meta": {
@@ -1124,92 +1466,12 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    host                            AS Application,\n    sum(bytes_sent)                AS total_duration_seconds\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND status != '101'\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Application\nORDER BY total_duration_seconds DESC",
+          "rawSql": "SELECT\n    sum(bytes_sent)\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nLIMIT 200",
           "refId": "A"
         }
       ],
-      "title": "Total Bytes Sent (MB)",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 20,
-        "y": 6
-      },
-      "id": 9,
-      "options": {
-        "displayMode": "lcd",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "",
-          "limit": 10,
-          "values": true
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    host                                       AS Application,\n    round(countIf(status >= 500) / count() * 100, 2) AS failure_rate_percent\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Application\nORDER BY failure_rate_percent DESC\n",
-          "refId": "A"
-        }
-      ],
-      "title": "500 Failure Rate%",
-      "type": "bargauge"
+      "title": "Total Sent",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -1228,6 +1490,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "scheme",
@@ -1244,6 +1507,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1259,7 +1523,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1273,9 +1537,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 5,
-        "x": 5,
-        "y": 14
+        "w": 4,
+        "x": 9,
+        "y": 15
       },
       "id": 10,
       "options": {
@@ -1286,10 +1550,12 @@
           "showLegend": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1310,7 +1576,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  uniqExact(remote_ip)            AS unique_ip_count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY time\nORDER BY time;",
+          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  uniqExact(remote_ip)            AS unique_ip_count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY time\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -1334,6 +1600,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "points",
             "fillOpacity": 0,
             "gradientMode": "scheme",
@@ -1350,6 +1617,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1365,7 +1633,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1379,9 +1647,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 5,
-        "x": 10,
-        "y": 14
+        "w": 4,
+        "x": 13,
+        "y": 15
       },
       "id": 11,
       "options": {
@@ -1392,10 +1660,12 @@
           "showLegend": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1416,7 +1686,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  sum(duration_ms)           AS total_duration_ms\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY time\nORDER BY time;",
+          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  sum(duration_ms)           AS total_duration_ms\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY time\nORDER BY time;",
           "refId": "A"
         }
       ],
@@ -1440,6 +1710,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "scheme",
@@ -1459,6 +1730,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1475,7 +1747,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
@@ -1485,9 +1757,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 5,
-        "x": 15,
-        "y": 14
+        "w": 4,
+        "x": 17,
+        "y": 15
       },
       "id": 12,
       "options": {
@@ -1498,10 +1770,12 @@
           "showLegend": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1522,7 +1796,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    $__timeInterval(ts) AS time,\n    sum(bytes_sent) / $__interval_s AS bytes_per_second\nFROM logs.caddy_requests\nWHERE\n    $__timeFilter(ts)\n    AND host LIKE '%${Application}%'\n    AND remote_ip LIKE '%${IP}%'\nGROUP BY\n    time\nORDER BY\n    time ASC",
+          "rawSql": "SELECT\n    $__timeInterval(ts) AS time,\n    sum(bytes_sent) / $__interval_s AS bytes_per_second\nFROM logs.caddy_requests\nWHERE\n    $__timeFilter(ts)\n    AND host LIKE '%${Application}%'\n    AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY\n    time\nORDER BY\n    time ASC",
           "refId": "A"
         }
       ],
@@ -1547,6 +1821,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "points",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -1563,6 +1838,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1578,7 +1854,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1591,9 +1867,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 4,
-        "x": 20,
-        "y": 14
+        "w": 3,
+        "x": 21,
+        "y": 15
       },
       "id": 13,
       "options": {
@@ -1604,10 +1880,12 @@
           "showLegend": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1628,12 +1906,98 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  countIf(status >= 500)          AS failure_count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY time\nORDER BY time;",
+          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  countIf(status >= 500)          AS failure_count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY time\nORDER BY time;",
           "refId": "A"
         }
       ],
       "title": "Requests 500 Count",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 9,
+        "x": 0,
+        "y": 21
+      },
+      "id": 5,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "/^requests$/",
+          "limit": 20,
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    host as Application,\n    count()                AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Application\nORDER BY requests DESC\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests By Count",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -1651,7 +2015,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1664,14 +2028,20 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 0,
-        "y": 20
+        "h": 7,
+        "w": 4,
+        "x": 9,
+        "y": 21
       },
       "id": 15,
       "options": {
         "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
         "maxVizHeight": 300,
         "minVizHeight": 16,
         "minVizWidth": 8,
@@ -1689,7 +2059,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1710,7 +2080,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    count()                                       AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Path\nORDER BY requests DESC\n",
+          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    count()                                       AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Path\nORDER BY requests DESC\n",
           "refId": "A"
         }
       ],
@@ -1733,7 +2103,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1746,14 +2116,20 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 9,
-        "y": 20
+        "h": 7,
+        "w": 4,
+        "x": 13,
+        "y": 21
       },
       "id": 18,
       "options": {
         "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
         "maxVizHeight": 300,
         "minVizHeight": 16,
         "minVizWidth": 8,
@@ -1771,7 +2147,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1792,7 +2168,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    avg(duration_ms)                               AS avg_response_time_ms\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND status != '101'\nGROUP BY Path\nORDER BY avg_response_time_ms DESC\n",
+          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    avg(duration_ms)                               AS avg_response_time_ms\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n  AND status != '101'\nGROUP BY Path\nORDER BY avg_response_time_ms DESC\n",
           "refId": "A"
         }
       ],
@@ -1815,7 +2191,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1823,19 +2199,25 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 20
+        "h": 23,
+        "w": 4,
+        "x": 17,
+        "y": 21
       },
-      "id": 14,
+      "id": 32,
       "options": {
         "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
         "maxVizHeight": 300,
         "minVizHeight": 16,
         "minVizWidth": 8,
@@ -1845,7 +2227,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^count$/",
+          "fields": "/^total_bytes_sent$/",
           "limit": 20,
           "values": true
         },
@@ -1853,7 +2235,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -1874,7 +2256,95 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT remote_ip, COUNT(*) AS count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY remote_ip\nORDER BY count DESC;",
+          "rawSql": "SELECT\n  remote_ip,\n  sum(bytes_sent) AS total_bytes_sent\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY remote_ip\nORDER BY total_bytes_sent DESC;\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Sent data to IPs",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 23,
+        "w": 3,
+        "x": 21,
+        "y": 21
+      },
+      "id": 14,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^count$/",
+          "limit": 20,
+          "values": true
+        },
+        "showUnfilled": false,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT remote_ip, COUNT(*) AS count\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY remote_ip\nORDER BY count DESC;",
           "refId": "A"
         }
       ],
@@ -1897,89 +2367,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 9,
-        "x": 0,
-        "y": 28
-      },
-      "id": 16,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^requests$/",
-          "limit": 25,
-          "values": true
-        },
-        "showUnfilled": false,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    count()                                       AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND status >= 500\nGROUP BY Path\nORDER BY requests DESC\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Error Interface",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1992,14 +2380,20 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 9,
+        "h": 6,
+        "w": 8,
         "x": 9,
         "y": 28
       },
       "id": 17,
       "options": {
         "displayMode": "basic",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
         "maxVizHeight": 300,
         "minVizHeight": 16,
         "minVizWidth": 8,
@@ -2017,7 +2411,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -2038,172 +2432,11 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    round(countIf(status >= 500) / count() * 100, 2) AS failure_rate_percent\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY Path\nORDER BY failure_rate_percent DESC\n",
+          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    round(countIf(status >= 500) / count() * 100, 2) AS failure_rate_percent\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY Path\nORDER BY failure_rate_percent DESC\n",
           "refId": "A"
         }
       ],
       "title": "Error Rate Interface",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "decbytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 6,
-        "x": 18,
-        "y": 28
-      },
-      "id": 36,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n    sum(bytes_sent)\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nLIMIT 200",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Traffic",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "fet9b6miuomwwf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 30
-      },
-      "id": 32,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^total_bytes_sent$/",
-          "limit": 20,
-          "values": true
-        },
-        "showUnfilled": false,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "11.1.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "fet9b6miuomwwf"
-          },
-          "editorType": "sql",
-          "format": 1,
-          "meta": {
-            "builderOptions": {
-              "columns": [],
-              "database": "",
-              "limit": 1000,
-              "mode": "list",
-              "queryType": "table",
-              "table": ""
-            }
-          },
-          "pluginVersion": "4.10.1",
-          "queryType": "table",
-          "rawSql": "SELECT\n  remote_ip,\n  sum(bytes_sent) AS total_bytes_sent\nFROM \"logs\".\"caddy_requests\"\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host      LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nGROUP BY remote_ip\nORDER BY total_bytes_sent DESC;\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Sent data to IPs",
       "type": "bargauge"
     },
     {
@@ -2241,9 +2474,9 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 24,
+        "w": 17,
         "x": 0,
-        "y": 38
+        "y": 34
       },
       "id": 1,
       "options": {
@@ -2260,7 +2493,7 @@
         "sortBy": [
           {
             "desc": false,
-            "displayName": "duration_ms"
+            "displayName": "ts"
           }
         ]
       },
@@ -2329,7 +2562,7 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "SELECT\n    ts, remote_ip, method, host, uri, status, bytes_sent, duration_ms\t\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\nORDER BY ts DESC\nLIMIT 200",
+          "rawSql": "SELECT\n    ts, remote_ip, method, host, uri, status, bytes_sent, duration_ms, country\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nORDER BY ts DESC\nLIMIT 200",
           "refId": "Hot Application"
         }
       ],
@@ -2343,12 +2576,50 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2361,30 +2632,26 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 6,
+        "w": 5,
         "x": 0,
-        "y": 48
+        "y": 44
       },
-      "id": 35,
+      "id": 37,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "11.1.3",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "datasource": {
@@ -2405,71 +2672,248 @@
           },
           "pluginVersion": "4.10.1",
           "queryType": "table",
-          "rawSql": "WITH first_seen AS (\n  SELECT\n    remote_ip,\n    min(ts) AS first_seen\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host       LIKE '%${Application}%'\n  AND remote_ip  LIKE '%${IP}%'\n  GROUP BY remote_ip\n),\nnew_ips_per_bucket AS (\n  SELECT\n    toStartOfMinute(first_seen) AS bucket,   -- 这一行可以改成你想要的时间粒度\n    count() AS new_ips\n  FROM first_seen\n  GROUP BY bucket\n)\nSELECT\n  bucket AS time,\n  sum(new_ips) OVER (ORDER BY bucket ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_unique_ips\nFROM new_ips_per_bucket\nORDER BY bucket;\n",
+          "rawSql": "SELECT\n  $__timeInterval(ts)             AS \"time\",\n  uniqExact(remote_ip)            AS unique_ip_count\nFROM \"logs\".\"caddy_requests\"\nWHERE uri like '/upgrade%'\n  AND ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\nGROUP BY time\nORDER BY time;",
           "refId": "A"
         }
       ],
-      "title": "Accumulative Unique Visitors",
-      "type": "stat"
+      "title": "Upgrade Unique IPs Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "fet9b6miuomwwf"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 5,
+        "y": 44
+      },
+      "id": 16,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^requests$/",
+          "limit": 25,
+          "values": true
+        },
+        "showUnfilled": false,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "fet9b6miuomwwf"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.10.1",
+          "queryType": "table",
+          "rawSql": "SELECT\n    concat(host, splitByChar('?', uri)[1])   AS Path,\n    count()                                       AS requests\nFROM logs.caddy_requests\nWHERE ( ts >= $__fromTime AND ts <= $__toTime )\n  AND host     LIKE '%${Application}%'\n  AND remote_ip LIKE '%${IP}%'\n  AND (\n    ('${Network}' = 'Global') OR\n    ('${Network}' = 'Internal' AND (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    )) OR\n    ('${Network}' = 'Internet' AND NOT (\n        remote_ip LIKE '10.%' OR \n        remote_ip LIKE '172.16.%' OR remote_ip LIKE '172.17.%' OR remote_ip LIKE '172.18.%' OR remote_ip LIKE '172.19.%' OR\n        remote_ip LIKE '172.20.%' OR remote_ip LIKE '172.21.%' OR remote_ip LIKE '172.22.%' OR remote_ip LIKE '172.23.%' OR\n        remote_ip LIKE '172.24.%' OR remote_ip LIKE '172.25.%' OR remote_ip LIKE '172.26.%' OR remote_ip LIKE '172.27.%' OR\n        remote_ip LIKE '172.28.%' OR remote_ip LIKE '172.29.%' OR remote_ip LIKE '172.30.%' OR remote_ip LIKE '172.31.%' OR\n        remote_ip LIKE '192.168.%'\n    ))\n  )\n  AND status >= 500\nGROUP BY Path\nORDER BY requests DESC\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Interface",
+      "type": "bargauge"
     }
   ],
+  "preload": false,
   "refresh": "30s",
-  "schemaVersion": 39,
+  "schemaVersion": 42,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "",
-          "value": ""
+          "text": "%",
+          "value": "%"
         },
         "description": "Application",
-        "hide": 0,
         "label": "Application",
         "name": "Application",
         "options": [
           {
             "selected": true,
-            "text": "",
-            "value": ""
+            "text": "%",
+            "value": "%"
           }
         ],
         "query": "%",
-        "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
-          "selected": false,
-          "text": "",
-          "value": ""
+          "text": "%",
+          "value": "%"
         },
         "description": "IP",
-        "hide": 0,
         "label": "IP",
         "name": "IP",
         "options": [
           {
             "selected": true,
-            "text": "",
-            "value": ""
+            "text": "%",
+            "value": "%"
           }
         ],
         "query": "%",
-        "skipUrlSync": false,
         "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "Global",
+          "value": "Global"
+        },
+        "description": "Network Type Filter",
+        "label": "Network",
+        "name": "Network",
+        "options": [
+          {
+            "selected": true,
+            "text": "Global",
+            "value": "Global"
+          },
+          {
+            "selected": false,
+            "text": "Internet",
+            "value": "Internet"
+          },
+          {
+            "selected": false,
+            "text": "Internal",
+            "value": "Internal"
+          }
+        ],
+        "query": "Global,Internet,Internal",
+        "type": "custom"
+      },
+      {
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "60s",
+        "current": {
+          "text": "1m",
+          "value": "1m"
+        },
+        "description": "",
+        "label": "interval",
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "refresh": 2,
+        "type": "interval"
       }
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Caddy",
-  "uid": "eet9bprvewlq8e",
-  "version": 75,
-  "weekStart": ""
+  "title": "Traffic",
+  "uid": "fet9bprvewlq9e",
+  "version": 1
 }
